@@ -26,12 +26,12 @@ public class Game {
     public Game(long chatId) {
         setChatId(chatId);
         users.put("bogdaninnova", 119970632);
-        //users.put("ildigrim", 193611353);
-        users.put("Jormungandre", 283463865);
+        users.put("ildigrim", 193611353);
+        //users.put("Jormungandre", 283463865);
 
         playersOrder.add("bogdaninnova");
-        //playersOrder.add("ildigrim");
-        playersOrder.add("Jormungandre");
+        playersOrder.add("ildigrim");
+        //playersOrder.add("Jormungandre");
     }
 
     public String getRandomWord() {

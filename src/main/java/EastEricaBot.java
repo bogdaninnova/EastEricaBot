@@ -2,7 +2,13 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class EastEricaBot  extends TelegramLongPollingBot {
 
@@ -24,8 +30,10 @@ public class EastEricaBot  extends TelegramLongPollingBot {
         System.out.println(chatId);
 
         if (admin.equals(user.getUserName()) && text.equals("/startNewGame")) {
-            sendSimpleMessage("Пишите мне в лс слова", chatId);
+            sendSimpleMessage("Пишите мне персонажей в лс", chatId);
             game = new Game(chatId);
+            for (String userName : game.getUsers().keySet())
+                sendSimpleMessage("Привет! Загадывай персонажей (отдельными сообщениями)", game.getUsers().get(userName));
             return;
         }
 
@@ -37,35 +45,32 @@ public class EastEricaBot  extends TelegramLongPollingBot {
         if (!game.getUsers().containsKey(user.getUserName()))
             return;
 
-        if (!game.isGameStarted() && user.getId() == chatId && text.equals("/mywords")) {
-
-        }
-
         if (admin.equals(user.getUserName()) && text.equals("/startNewRound")) {
             game.resetWordsLeft();
             game.setGameStarted(true);
             sendSimpleMessage("Начало нового раунда", chatId);
-            sendSimpleMessage("Сейчас ход игрока @" + game.getCurrentUser() + "!", chatId);
-            sendSimpleMessage("Привет, сейчас твой ход!\nЖми /start чтобы начать.", game.getUsers().get(game.getCurrentUser()));
+            sendSimpleMessage("Ход игрока @" + game.getCurrentUser() + "! Ждём готовности.", chatId);
+            sendSimpleMessage("Привет, сейчас твой ход!\nЖми 'Начать' когда будешь готов", "Начать", game.getUsers().get(game.getCurrentUser()));
             return;
         }
 
-        if (user.getUserName().equals(game.getCurrentUser()) && !game.isActivePhase() && text.equals("/start")) {
-            sendSimpleMessage(game.getRandomWord(), user.getId());
+        if (user.getId() == chatId && user.getUserName().equals(game.getCurrentUser()) && !game.isActivePhase() && text.equals("Начать")) {
+            sendSimpleMessage(game.getRandomWord(), "Следующий Персонаж", user.getId());
+            sendSimpleMessage("Начали! Ход игрока @" + game.getCurrentUser(), game.getChatId());
             game.setActivePhase(true);
             game.removeWord();
             new GameTimer(this);
         }
 
-        if (game.isActivePhase() && user.getId() == chatId && user.getUserName().equals(game.getCurrentUser()) && text.equals("next")) {
+        if (game.isActivePhase() && user.getId() == chatId && user.getUserName().equals(game.getCurrentUser()) && text.equals("Следующий Персонаж")) {
 
             if (game.getCurrentWord() != null)
-                sendSimpleMessage("Отгаданное слово: " + game.getCurrentWord(), game.getChatId());
+                sendSimpleMessage("Отгаданный персонаж: " + game.getCurrentWord(), game.getChatId());
 
             if (game.isEmptyWordSet()) {
                 finishTurn();
             } else {
-                sendSimpleMessage(game.getRandomWord(), user.getId());
+                sendSimpleMessage(game.getRandomWord(), "Следующий Персонаж", user.getId());
                 game.removeWord();
             }
         }
@@ -82,7 +87,7 @@ public class EastEricaBot  extends TelegramLongPollingBot {
         game.setActivePhase(false);
         if (game.isWordSetEmpty()) {
             StringBuilder sb = new StringBuilder();
-            sb.append("Конец раунда, количество угаданных слов:");
+            sb.append("Конец раунда, количество угаданных персонажей:");
             for (String player : game.getStatistics().keySet()) {
                 sb.append("\nИгрок @");
                 sb.append(player);
@@ -97,7 +102,7 @@ public class EastEricaBot  extends TelegramLongPollingBot {
             sendSimpleMessage("Время вышло!", game.getChatId());
             game.nextPlayer();
             sendSimpleMessage("Сейчас ход игрока @" + game.getCurrentUser() + "!", game.getChatId());
-            sendSimpleMessage("Привет, сейчас твой ход!\nЖми /start чтобы начать.", game.getUsers().get(game.getCurrentUser()));
+            sendSimpleMessage("Привет, сейчас твой ход!\nЖми 'Начать' когда будешь готов", "Начать", game.getUsers().get(game.getCurrentUser()));
         }
 
 
@@ -105,9 +110,38 @@ public class EastEricaBot  extends TelegramLongPollingBot {
 
 
     public void sendSimpleMessage(String text, long chatId) {
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText(text);
+        try {
+            execute(new SendMessage().setChatId(chatId).setText(text).setReplyMarkup(new ReplyKeyboardRemove()));
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void sendSimpleMessageLeaveMarkup(String text, long chatId) {
+        try {
+            execute(new SendMessage().setChatId(chatId).setText(text));
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void sendSimpleMessage(String text, String keyboardButton, long chatId) {
+
+
+        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
+
+        replyKeyboardMarkup.setSelective(false);
+        replyKeyboardMarkup.setResizeKeyboard(false);
+        replyKeyboardMarkup.setOneTimeKeyboard(true);
+
+        List<KeyboardRow> keyboard = new ArrayList<>();
+        KeyboardRow keyboardRow = new KeyboardRow();
+
+        keyboardRow.add(keyboardButton);
+        keyboard.add(keyboardRow);
+        replyKeyboardMarkup.setKeyboard(keyboard);
+
+        SendMessage message = new SendMessage().setChatId(chatId).setText(text).setReplyMarkup(replyKeyboardMarkup);
         try {
             execute(message);
         } catch (TelegramApiException e) {
