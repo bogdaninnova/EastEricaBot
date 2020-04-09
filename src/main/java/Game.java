@@ -5,9 +5,8 @@ import java.util.Random;
 
 public class Game {
 
-    private HashMap<String, Integer> users = new HashMap<>();
     private ArrayList<String> wordsLeft;
-    private ArrayList<String> playersOrder = new ArrayList<>();
+    private ArrayList<String> players;
     private int currentPlayer = 0;
     private boolean isGameStarted = false;
     private Random rand = new Random();
@@ -22,19 +21,9 @@ public class Game {
 
     private boolean isActivePhase = false;
 
-    public Game(long chatId) {
+    public Game(long chatId, ArrayList<String> players) {
         setChatId(chatId);
-        users.put("bogdaninnova", 119970632);
-        users.put("mandarinaobshaetsia", 283147469);
-        users.put("cooll_babka", 183926638);
-        users.put("levgerina", 322035787);
-        //users.put("Jormungandre", 283463865);
-
-        playersOrder.add("bogdaninnova");
-        playersOrder.add("mandarinaobshaetsia");
-        playersOrder.add("cooll_babka");
-        playersOrder.add("levgerina");
-        //playersOrder.add("Jormungandre");
+        this.players = players;
     }
 
     public String getRandomWord() {
@@ -70,11 +59,11 @@ public class Game {
     }
 
     public String getCurrentUser() {
-        return playersOrder.get(currentPlayer);
+        return players.get(currentPlayer);
     }
 
     public void nextPlayer() {
-        if (++currentPlayer == playersOrder.size())
+        if (++currentPlayer == players.size())
             currentPlayer = 0;
     }
 
@@ -84,10 +73,6 @@ public class Game {
 
     public void setGameStarted(boolean isGameStarted) {
         this.isGameStarted = isGameStarted;
-    }
-
-    public HashMap<String, Integer> getUsers() {
-        return users;
     }
 
     public void addWordToAll(String userName, String word) {
@@ -139,5 +124,9 @@ public class Game {
 
     public HashMap<String, Integer> getStatistics() {
         return statistics;
+    }
+
+    public ArrayList<String> getPlayers() {
+        return players;
     }
 }

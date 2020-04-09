@@ -7,16 +7,17 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRem
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
-public class EastEricaBot  extends TelegramLongPollingBot {
+public class EastEricaBot extends TelegramLongPollingBot {
 
     private static final String botUsername = "EastEricaBot";
     private static final String botToken = "858313302:AAGyCP8vfiuPBetMhdY9WRymza6PlKuv7sA";
-    private Game game;
+
+    private static HashMap<Long, Game> games = new HashMap<>();
 
     private static final String admin = "bogdaninnova";
+    public static UsersList usersList = new UsersList();
 
     @Override
     public void onUpdateReceived(Update update) {
@@ -25,62 +26,103 @@ public class EastEricaBot  extends TelegramLongPollingBot {
         User user = update.getMessage().getFrom();
         long chatId = update.getMessage().getChatId();
 
-//        //System.out.println(update.getMessage().getReplyToMessage().getText());
-//        System.out.println(text);
-//        System.out.println(user);
-//        System.out.println(chatId);
+        //System.out.println(update.getMessage().getReplyToMessage().getText());
+        System.out.println(text);
+        System.out.println(user);
+        System.out.println(chatId);
 
-        if (admin.equals(user.getUserName()) && text.equals("/startNewGame")) {
-            sendSimpleMessage("Пишите мне персонажей в лс", chatId);
-            game = new Game(chatId);
-            for (String userName : game.getUsers().keySet())
-                sendSimpleMessage("Привет! Загадывай персонажей (отдельными сообщениями)", game.getUsers().get(userName));
+        if (update.getMessage().getReplyToMessage() != null && !text.toLowerCase().equals("список") && !text.toLowerCase().equals("удалить"))
+             return;
+
+        if (text.equals("/start")) {
+            if (chatId == user.getId()) {
+                usersList.addUser(user.getUserName().toLowerCase(), user.getId());
+                sendSimpleMessage("User @" + user.getUserName() + " with id = " + user.getId() + " is registered!", 119970632);
+            }
             return;
         }
 
-        if (game == null) {
+        if (text.length() > 15) {
+            if (admin.equals(user.getUserName()) && text.substring(0, 15).equals("/startNewGame @")) {
+                ArrayList<String> list = new ArrayList<>(Arrays.asList(text.replace(" ", "").substring(text.indexOf("@")).split("@")));
+                int errors = 0;
+
+                for (String userName : list)
+                    if (usersList.getUserId(userName) == 0) {
+                        sendSimpleMessage("Пользователь @" + userName + " не зарегестрирован!", chatId);
+                        errors++;
+                    }
+                if (errors > 0 || list.size() == 0)
+                    return;
+
+                games.put(chatId, new Game(chatId, list));
+
+                sendSimpleMessage("Пишите мне персонажей в лс", chatId);
+                for (String userName : games.get(chatId).getPlayers())
+                    sendSimpleMessage("Привет! Загадывай персонажей (отдельными сообщениями)", usersList.getUserId(userName));
+                return;
+            }
+        }
+
+        if (usersList.getUserId(user.getUserName()) == 0)
+            return;
+        long gameChatId = getUsersGame(user.getUserName());
+        if (gameChatId == 0) {
             sendSimpleMessage("Игра ещё не началась!", chatId);
             return;
         }
+        Game game = games.get(gameChatId);
 
-        if (!game.getUsers().containsKey(user.getUserName()))
+
+        if (text.toLowerCase().equals("/statistic") && games.containsKey(chatId)) {
+            if (games.get(chatId).isGameStarted()) {
+                if (!games.get(chatId).isActivePhase())
+                    sendStatistic(games.get(chatId));
+            } else
+                sendSimpleMessage("Раунд ещё не начался!", chatId);
             return;
+        }
+
 
         if (admin.equals(user.getUserName()) && text.equals("/startNewRound")) {
             game.resetWordsLeft();
             game.setGameStarted(true);
-            sendSimpleMessage("Начало нового раунда", chatId);
-            sendSimpleMessage("Ход игрока @" + game.getCurrentUser() + "! Ждём готовности.", chatId);
-            sendSimpleMessage("Привет, сейчас твой ход!\nЖми 'Начать' когда будешь готов", "Начать", game.getUsers().get(game.getCurrentUser()));
+            sendSimpleMessage("Начало нового раунда", gameChatId);
+            sendSimpleMessage("Ход игрока @" + game.getCurrentUser() + "! Ждём готовности.", gameChatId);
+            sendSimpleMessage(
+                    "Привет, сейчас твой ход!\nЖми 'Начать' когда будешь готов",
+                    "Начать",
+                    usersList.getUserId(game.getCurrentUser())
+            );
             return;
         }
 
         if (user.getId() == chatId && user.getUserName().equals(game.getCurrentUser()) && !game.isActivePhase() && text.equals("Начать")) {
-            sendSimpleMessage(game.getRandomWord(), "Следующий Персонаж", user.getId());
-            sendSimpleMessage("Начали! Ход игрока @" + game.getCurrentUser(), game.getChatId());
+            sendSimpleMessage(game.getRandomWord(), "Следующий Персонаж", chatId);
+            sendSimpleMessage("Начали! Ход игрока @" + game.getCurrentUser(), gameChatId);
             game.setActivePhase(true);
             game.removeWord();
-            new GameTimer(this);
+            new GameTimer(this, game);
         }
 
         if (game.isActivePhase() && user.getId() == chatId && user.getUserName().equals(game.getCurrentUser()) && text.equals("Следующий Персонаж")) {
 
             if (game.getCurrentWord() != null)
-                sendSimpleMessage("Отгаданный персонаж: " + game.getCurrentWord(), game.getChatId());
+                sendSimpleMessage("Отгаданный персонаж: " + game.getCurrentWord(), gameChatId);
 
             if (game.isEmptyWordSet()) {
-                finishTurn();
+                finishTurn(game);
             } else {
-                sendSimpleMessage(game.getRandomWord(), "Следующий Персонаж", user.getId());
+                sendSimpleMessage(game.getRandomWord(), "Следующий Персонаж", chatId);
                 game.removeWord();
             }
         }
 
         if (!game.isGameStarted() && user.getId() == chatId) {
-            if (update.getMessage().getReplyToMessage() != null && update.getMessage().getText().toLowerCase().equals("удалить"))
+            if (update.getMessage().getReplyToMessage() != null && text.toLowerCase().equals("удалить"))
                 game.revokeWord(user.getUserName(), update.getMessage().getReplyToMessage().getText());
 
-            if (update.getMessage().getText().toLowerCase().equals("список") || update.getMessage().getText().toLowerCase().equals("удалить")) {
+            if (text.toLowerCase().equals("список") || text.toLowerCase().equals("удалить")) {
                 ArrayList<String> list = game.getMyWordsAll(user.getUserName());
                 StringBuilder sb = new StringBuilder();
                 sb.append(list.get(0));
@@ -97,31 +139,45 @@ public class EastEricaBot  extends TelegramLongPollingBot {
     }
 
 
-    public void finishTurn() {
+    private static long getUsersGame(String userName) {
+        for (long gameChatId : games.keySet())
+            if (games.get(gameChatId).getPlayers().contains(userName))
+                return gameChatId;
+        return 0;
+    }
+
+    public void finishTurn(Game game) {
         game.setActivePhase(false);
         if (game.isWordSetEmpty()) {
-            StringBuilder sb = new StringBuilder();
-            sb.append("Конец раунда, количество угаданных персонажей:");
-            for (String player : game.getStatistics().keySet()) {
-                sb.append("\nИгрок @");
-                sb.append(player);
-                sb.append(": ");
-                sb.append(game.getStatistics().get(player));
-            }
-            sendSimpleMessage(sb.toString(), game.getChatId());
-            sendSimpleMessage("Конец раунда!", game.getUsers().get(game.getCurrentUser()));
+            sendSimpleMessage("Конец раунда!", usersList.getUserId(game.getCurrentUser()));
+            sendSimpleMessage("Конец раунда!", game.getChatId());
+            sendStatistic(game);
             game.nextPlayer();
         } else {
-            sendSimpleMessage("Время вышло!", game.getUsers().get(game.getCurrentUser()));
+            sendSimpleMessage("Время вышло!", usersList.getUserId(game.getCurrentUser()));
             sendSimpleMessage("Время вышло!", game.getChatId());
             game.nextPlayer();
             sendSimpleMessage("Сейчас ход игрока @" + game.getCurrentUser() + "!", game.getChatId());
-            sendSimpleMessage("Привет, сейчас твой ход!\nЖми 'Начать' когда будешь готов", "Начать", game.getUsers().get(game.getCurrentUser()));
+            sendSimpleMessage("Привет, сейчас твой ход!\nЖми 'Начать' когда будешь готов", "Начать", usersList.getUserId(game.getCurrentUser()));
         }
-
-
     }
 
+    private void sendStatistic(Game game) {
+        if (game.getStatistics().isEmpty()) {
+            sendSimpleMessage("Пока ещё никто ничего не отгадал!", game.getChatId());
+            return;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Количество угаданных персонажей:");
+        for (String player : game.getStatistics().keySet()) {
+            sb.append("\nИгрок @");
+            sb.append(player);
+            sb.append(": ");
+            sb.append(game.getStatistics().get(player));
+        }
+        sendSimpleMessage(sb.toString(), game.getChatId());
+    }
 
     public void sendSimpleMessage(String text, long chatId) {
         try {
@@ -161,10 +217,6 @@ public class EastEricaBot  extends TelegramLongPollingBot {
         } catch (TelegramApiException e) {
             e.printStackTrace();
         }
-    }
-
-    public Game getGame() {
-        return game;
     }
 
     @Override
