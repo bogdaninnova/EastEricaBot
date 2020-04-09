@@ -3,9 +3,9 @@ import java.util.TimerTask;
 
 public class GameTimer {
 
-    private static final long firstRemindTime = 1000;
-    private static final long lastRemindTime = 5000;
-    private static final long stopRoundTime = 15000;
+    private static final long firstRemindTime = 45000;
+    private static final long lastRemindTime = 55000;
+    private static final long stopRoundTime = 60000;
 
     private String userName;
 
@@ -14,15 +14,15 @@ public class GameTimer {
         TimerTask firstRemainder = new TimerTask() {
             public void run() {
                 if (bot.getGame().isActivePhase() && userName.equals(bot.getGame().getCurrentUser()))
-                    bot.sendSimpleMessageLeaveMarkup("Осталось 15 секунд!", bot.getGame().getChatId());
-                    bot.sendSimpleMessageLeaveMarkup("Осталось 15 секунд!", bot.getGame().getUsers().get(bot.getGame().getCurrentUser()));
+                    bot.sendSimpleMessageLeaveMarkup("15 seconds left!", bot.getGame().getChatId());
+                    bot.sendSimpleMessageLeaveMarkup("15 seconds left!", bot.getGame().getUsers().get(bot.getGame().getCurrentUser()));
             }
         };
         TimerTask lastRemainder = new TimerTask() {
             public void run() {
                 if (bot.getGame().isActivePhase() && userName.equals(bot.getGame().getCurrentUser()))
-                    bot.sendSimpleMessageLeaveMarkup("Осталось 5 секунд!", bot.getGame().getChatId());
-                    bot.sendSimpleMessageLeaveMarkup("Осталось 5 секунд!", bot.getGame().getUsers().get(bot.getGame().getCurrentUser()));
+                    bot.sendSimpleMessageLeaveMarkup("5 seconds left!", bot.getGame().getChatId());
+                    bot.sendSimpleMessageLeaveMarkup("5 seconds left!", bot.getGame().getUsers().get(bot.getGame().getCurrentUser()));
             }
         };
         TimerTask stopRound = new TimerTask() {

@@ -25,9 +25,10 @@ public class EastEricaBot  extends TelegramLongPollingBot {
         User user = update.getMessage().getFrom();
         long chatId = update.getMessage().getChatId();
 
-        System.out.println(text);
-        System.out.println(user);
-        System.out.println(chatId);
+//        //System.out.println(update.getMessage().getReplyToMessage().getText());
+//        System.out.println(text);
+//        System.out.println(user);
+//        System.out.println(chatId);
 
         if (admin.equals(user.getUserName()) && text.equals("/startNewGame")) {
             sendSimpleMessage("Пишите мне персонажей в лс", chatId);
@@ -75,9 +76,22 @@ public class EastEricaBot  extends TelegramLongPollingBot {
             }
         }
 
-        if (!game.isGameStarted()) {
-            if (user.getId() == chatId)
-                game.addWordToAll(text);
+        if (!game.isGameStarted() && user.getId() == chatId) {
+            if (update.getMessage().getReplyToMessage() != null && update.getMessage().getText().toLowerCase().equals("удалить"))
+                game.revokeWord(user.getUserName(), update.getMessage().getReplyToMessage().getText());
+
+            if (update.getMessage().getText().toLowerCase().equals("список") || update.getMessage().getText().toLowerCase().equals("удалить")) {
+                ArrayList<String> list = game.getMyWordsAll(user.getUserName());
+                StringBuilder sb = new StringBuilder();
+                sb.append(list.get(0));
+                for (int i = 1; i < list.size(); i++) {
+                    sb.append(", ");
+                    sb.append(list.get(i));
+                }
+                sendSimpleMessage("У вас в списке " + list.size() + " персонажей! \n" + sb.toString(), chatId);
+                return;
+            }
+            game.addWordToAll(user.getUserName(), text);
             //return;
         }
     }

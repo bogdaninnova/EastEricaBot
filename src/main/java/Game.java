@@ -6,7 +6,6 @@ import java.util.Random;
 public class Game {
 
     private HashMap<String, Integer> users = new HashMap<>();
-    private ArrayList<String> wordsAll = new ArrayList<>();
     private ArrayList<String> wordsLeft;
     private ArrayList<String> playersOrder = new ArrayList<>();
     private int currentPlayer = 0;
@@ -17,7 +16,7 @@ public class Game {
     private String currentWord = null;
     private long chatId;
 
-
+    private HashMap<String, ArrayList<String>> wordsAll = new HashMap<>();
     private HashMap<String, Integer> statistics;
 
 
@@ -26,11 +25,15 @@ public class Game {
     public Game(long chatId) {
         setChatId(chatId);
         users.put("bogdaninnova", 119970632);
-        users.put("ildigrim", 193611353);
+        users.put("mandarinaobshaetsia", 283147469);
+        users.put("cooll_babka", 183926638);
+        users.put("levgerina", 322035787);
         //users.put("Jormungandre", 283463865);
 
         playersOrder.add("bogdaninnova");
-        playersOrder.add("ildigrim");
+        playersOrder.add("mandarinaobshaetsia");
+        playersOrder.add("cooll_babka");
+        playersOrder.add("levgerina");
         //playersOrder.add("Jormungandre");
     }
 
@@ -62,7 +65,8 @@ public class Game {
     public void resetWordsLeft() {
         statistics = new HashMap<>();
         wordsLeft = new ArrayList<>();
-        wordsLeft.addAll(wordsAll);
+        for (String userName : wordsAll.keySet())
+        wordsLeft.addAll(wordsAll.get(userName));
     }
 
     public String getCurrentUser() {
@@ -86,8 +90,23 @@ public class Game {
         return users;
     }
 
-    public void addWordToAll(String word) {
-        wordsAll.add(word);
+    public void addWordToAll(String userName, String word) {
+        if (wordsAll.containsKey(userName))
+            wordsAll.get(userName).add(word);
+        else {
+            ArrayList<String> list = new ArrayList<>();
+            list.add(word);
+            wordsAll.put(userName, list);
+        }
+    }
+
+    public void revokeWord(String userName, String word) {
+        if (wordsAll.containsKey(userName))
+            wordsAll.get(userName).remove(word);
+    }
+
+    public ArrayList<String> getMyWordsAll(String userName) {
+        return wordsAll.get(userName);
     }
 
     public long getChatId() {
