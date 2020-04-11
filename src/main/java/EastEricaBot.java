@@ -16,7 +16,6 @@ public class EastEricaBot extends TelegramLongPollingBot {
 
     private static HashMap<Long, Game> games = new HashMap<>();
 
-    private static final String admin = "bogdaninnova";
     public static UsersList usersList = new UsersList();
 
     @Override
@@ -31,7 +30,10 @@ public class EastEricaBot extends TelegramLongPollingBot {
         System.out.println(user);
         System.out.println(chatId);
 
-        if (update.getMessage().getReplyToMessage() != null && !text.toLowerCase().equals("список") && !text.toLowerCase().equals("удалить"))
+        if (update.getMessage().getReplyToMessage() != null &&
+                !text.toLowerCase().equals("список") &&
+                !text.toLowerCase().equals("удалить") &&
+                !text.toLowerCase().equals("отмена"))
              return;
 
         if (text.equals("/start")) {
@@ -42,8 +44,12 @@ public class EastEricaBot extends TelegramLongPollingBot {
             return;
         }
 
+        if (usersList.getUserId(user.getUserName()) == 0)
+            return;
+        long gameChatId = getUsersGame(user.getUserName());
+
         if (text.length() > 15) {
-            if (admin.equals(user.getUserName()) && text.substring(0, 15).equals("/startNewGame @")) {
+            if ((gameChatId == 0) && text.substring(0, 15).equals("/startNewGame @")) {
                 ArrayList<String> list = new ArrayList<>(Arrays.asList(text.replace(" ", "").substring(text.indexOf("@")).split("@")));
                 int errors = 0;
 
@@ -55,7 +61,7 @@ public class EastEricaBot extends TelegramLongPollingBot {
                 if (errors > 0 || list.size() == 0)
                     return;
 
-                games.put(chatId, new Game(chatId, list));
+                games.put(chatId, new Game(chatId, list, user.getUserName()));
 
                 sendSimpleMessage("Пишите мне персонажей в лс", chatId);
                 for (String userName : games.get(chatId).getPlayers())
@@ -64,15 +70,17 @@ public class EastEricaBot extends TelegramLongPollingBot {
             }
         }
 
-        if (usersList.getUserId(user.getUserName()) == 0)
-            return;
-        long gameChatId = getUsersGame(user.getUserName());
         if (gameChatId == 0) {
             sendSimpleMessage("Игра ещё не началась!", chatId);
             return;
         }
         Game game = games.get(gameChatId);
 
+        if (game.getAdmin().equals(user.getUserName()) && text.equals("/stopGame")) {
+            games.remove(gameChatId);
+            sendSimpleMessage("Игра закончена!", gameChatId);
+            return;
+        }
 
         if (text.toLowerCase().equals("/statistic") && games.containsKey(chatId)) {
             if (games.get(chatId).isGameStarted()) {
@@ -83,8 +91,7 @@ public class EastEricaBot extends TelegramLongPollingBot {
             return;
         }
 
-
-        if (admin.equals(user.getUserName()) && text.equals("/startNewRound")) {
+        if (game.getAdmin().equals(user.getUserName()) && text.equals("/startNewRound")) {
             game.resetWordsLeft();
             game.setGameStarted(true);
             sendSimpleMessage("Начало нового раунда", gameChatId);
@@ -118,8 +125,42 @@ public class EastEricaBot extends TelegramLongPollingBot {
             }
         }
 
+        if (!game.isActivePhase() && games.containsKey(chatId) && text.toLowerCase().equals("/защитать") && game.getCurrentWord() != null) {
+            sendSimpleMessage("Отгаданный персонаж: " + game.getCurrentWord(), chatId);
+            games.get(chatId).addPointToPrevious();
+            if (game.isWordSetEmpty()) {
+                sendSimpleMessage("Конец раунда!", usersList.getUserId(game.getCurrentUser()));
+                sendSimpleMessage("Конец раунда!", game.getChatId());
+                sendStatistic(game);
+            }
+            return;
+        }
+
+        if (!game.isActivePhase() && games.containsKey(chatId) && text.toLowerCase().equals("отмена")) {
+
+            System.out.println(1);
+
+            if (!update.getMessage().getReplyToMessage().getFrom().getUserName().equals("EastEricaBot"))
+                return;
+
+            System.out.println(2);
+
+            if (update.getMessage().getReplyToMessage().getText().length() < 21)
+                return;
+
+            System.out.println(3);
+
+            String word = update.getMessage().getReplyToMessage().getText().substring(21);
+
+            System.out.println(word);
+            if (games.get(chatId).cancelWord(word))
+                sendSimpleMessage("Отгаданный Персонаж '" + word + "' не защитывается!", chatId);
+
+            return;
+        }
+
         if (!game.isGameStarted() && user.getId() == chatId) {
-            if (update.getMessage().getReplyToMessage() != null && text.toLowerCase().equals("удалить"))
+            if (text.toLowerCase().equals("удалить"))
                 game.revokeWord(user.getUserName(), update.getMessage().getReplyToMessage().getText());
 
             if (text.toLowerCase().equals("список") || text.toLowerCase().equals("удалить")) {

@@ -18,10 +18,12 @@ public class Game {
     private HashMap<String, ArrayList<String>> wordsAll = new HashMap<>();
     private HashMap<String, Integer> statistics;
 
+    private String admin;
 
     private boolean isActivePhase = false;
 
-    public Game(long chatId, ArrayList<String> players) {
+    public Game(long chatId, ArrayList<String> players, String admin) {
+        setAdmin(admin);
         setChatId(chatId);
         this.players = players;
     }
@@ -47,7 +49,7 @@ public class Game {
 
     public void restoreLastWord() {
         wordsLeft.add(currentWord);
-        currentWord = null;
+        //currentWord = null;
         statistics.put(getCurrentUser(), statistics.get(getCurrentUser()) - 1);
     }
 
@@ -60,6 +62,18 @@ public class Game {
 
     public String getCurrentUser() {
         return players.get(currentPlayer);
+    }
+
+    public void addPointToPrevious() {
+        String prevPlayer = getPrevPlayer();
+        wordsLeft.remove(currentWord);
+        currentWord = null;
+        if (statistics.containsKey(prevPlayer))
+            statistics.put(prevPlayer, statistics.get(prevPlayer) + 1);
+    }
+
+    private String getPrevPlayer() {
+        return players.get(currentPlayer == 0  ? players.size() - 1 : currentPlayer - 1);
     }
 
     public void nextPlayer() {
@@ -128,5 +142,32 @@ public class Game {
 
     public ArrayList<String> getPlayers() {
         return players;
+    }
+
+    public String getAdmin() {
+        return admin;
+    }
+
+    public void setAdmin(String admin) {
+        this.admin = admin;
+    }
+
+    private boolean isWordInList(String WordCancel) {
+        for (String key : wordsAll.keySet())
+            for (String word : wordsAll.get(key))
+                if (word.equals(WordCancel))
+                    return true;
+        return false;
+    }
+
+    public boolean cancelWord(String wordCancel) {
+        boolean isWordInList = isWordInList(wordCancel);
+        boolean isWordInLeft = wordsLeft.contains(wordCancel);
+        if (isWordInList && !isWordInLeft) {
+            String prevPlayer = getPrevPlayer();
+            wordsLeft.add(wordCancel);
+            statistics.put(prevPlayer, statistics.get(prevPlayer) - 1);
+        }
+        return isWordInList && !isWordInLeft;
     }
 }
